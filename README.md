@@ -41,13 +41,13 @@ Easy steps to install the plugin:
 
 1. Requires cURL. Enable cURL if it is not enabled.
 2. Requires Mcrypt library. If it is not enabled or installed, install Mcrypt library and enable.
-3. Upload `netpay-payment-gateway-for-woocommerce` folder/directory to the `/wp-content/plugins/` directory.
+3. Upload `netPay-hosted-payment-gateway-for-wooCommerce` folder/directory to the `/wp-content/plugins/` directory.
 4. Activate the plugin through the 'Plugins' menu in WordPress.
 5. Go to WooCommerce => Settings
 6. On the "Settings" page, select "Payment Gateways" tab.
-7. Under "Payment Gateways" you will find all the available gateways, select "NetPay Hosted Form" option
+7. Under "Payment Gateways" you will find all the available gateways, select "NetPay Hosted Payment Gateway Method" option
 8. On this page you will find options to configure the plugin for use with WooCommerce
-9. Enter the integration details (Merchant Id, Merchant Login, Password etc)
+9. Enter the integration details (Merchant Id, Merchant Login, Password etc).
 
 
 == Frequently Asked Questions ==

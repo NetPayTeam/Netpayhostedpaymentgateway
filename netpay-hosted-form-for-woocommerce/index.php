@@ -10,8 +10,6 @@
   Note: Tested upto wordpress latest version WP5.8 and tested upto woocommerce version 5.6.0
  */
  
-error_reporting(E_ERROR | E_PARSE);
-
 add_action('plugins_loaded', 'woocommerce_tbi_netpay_init', 0);
 
 function woocommerce_tbi_netpay_init()
@@ -35,9 +33,9 @@ function woocommerce_tbi_netpay_init()
         public function __construct()
         {
 
-            $this->method = 'AES-128-CBC'; // Encryption method, IT SHOULD NOT BE CHANGED
+            $this->method = esc_html('AES-128-CBC', 'tbi'); // Encryption method, IT SHOULD NOT BE CHANGED
 
-            $this->id = 'netpay';
+            $this->id = esc_html('netpay', 'tbi');
             $this->method_title = __('NetPay Hosted Payment Gateway Method', 'tbi');
             $this->icon = WP_PLUGIN_URL . "/" . plugin_basename(dirname(__FILE__)) . '/images/logo.gif';
             $this->has_fields = false;
@@ -47,7 +45,7 @@ function woocommerce_tbi_netpay_init()
 
             //Setting allows to test plugin without making real payment, notifies clearly to merchant that order was paid using Test Mode
             if ($this->settings['working_mode'] == 'test') {
-                $this->title = $this->settings['title'] . " - <b>Test Mode</b>";
+                $this->title = $this->settings['title'] . " - <b>".esc_html('Test Mode', 'tbi')."</b>";
             }
             else {
                 $this->title = $this->settings['title'];
@@ -76,7 +74,7 @@ function woocommerce_tbi_netpay_init()
             add_action('init', array(&$this, 'check_netpay_response'));
             add_action('woocommerce_api_wc_tbi_netpay', array($this, 'check_netpay_response'));
 
-            if (version_compare(WOOCOMMERCE_VERSION, '2.0.0', '>=')) {
+            if (version_compare(WOOCOMMERCE_VERSION, '5.0.0', '>=')) {
                 add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
             }
             else {
@@ -163,16 +161,24 @@ function woocommerce_tbi_netpay_init()
          */
         public function admin_options()
         {
-            echo '<h3>' . __('NetPay Hosted Form Method Payment Configuration', 'tbi') . '</h3>';
-            echo '<p>' . __('NetPay is most popular payment gateway for online payment processing') . '</p>';
-            if (!function_exists('curl_version')) {
-                echo '<div id="message" class="error"><p><strong style="text-transform: uppercase; font-size: 18px;">' . __('You need to have cURL extension enabled in your PHP installation to use this plugin') . '</strong></p></div>';
-            }
-            else {
-                echo '<table class="form-table">';
-                $this->generate_settings_html();
-                echo '<tr><td>(Module Version 1.0.6)</td></tr></table>';
-            }
+			$string = get_woocommerce_currency();
+			$gbp = esc_html('GBP', 'tbi');
+			if($string != $gbp){
+				echo '<h2>';
+					esc_html_e('This payment gateway is works with default currency United Kingdom (£), So please change the default currencies to United Kingdom (£) ie GBP from General->General options section to make this gateway properly works', 'tbi');
+				echo '</h2>';
+			}
+			else{
+				echo '<h3>';
+					esc_html_e('NetPay Hosted Form Method Payment Configuration', 'tbi');
+				echo '</h3>';
+				echo '<p>'; 
+					esc_html_e('NetPay is most popular payment gateway for online payment processing','tbi');
+				echo '</p>';
+				echo '<table class="form-table">';
+					$this->generate_settings_html();
+				echo '</table>';
+			}
         }
 
         /**
@@ -405,10 +411,10 @@ function woocommerce_tbi_netpay_init()
             if ($this->backend_response == 'yes') {
                 if (isset($_POST['response'])) {
                     //Handle backend response received from NetPay.
-                    $response = $_POST['response'];
-                    $orderId = $_GET['order_id'];
+                    $response = esc_attr($_POST['response']);
+                    $orderId = sanitize_text_field($_GET['order_id']);
                     //Try decrypting response received
-					$encryption_method = 'AES-128-CBC';
+					$encryption_method = esc_html('AES-128-CBC', 'tbi');
                     $decrypted_response = $this->openssl_decrypt_cbc($response, $this->enc_key, $this->enc_iv, $encryption_method);
                     //Split response into array after decryption
                     $response_array = json_decode($decrypted_response, TRUE);
@@ -457,9 +463,9 @@ function woocommerce_tbi_netpay_init()
 
                                     //If it passed all checks set Payment as completed
                                     $order->payment_complete();
-                                    $order->add_order_note('NetPay payment successful<br/>NetPay Transaction ID: ' . $response_array['transaction_id'] . '<br/>NetPay Order ID: ' . $response_array['order_id']);
+                                    $order->add_order_note(esc_html('NetPay payment successful<br/>NetPay Transaction ID: ' . $response_array['transaction_id'] . '<br/>NetPay Order ID: ' . $response_array['order_id'], 'tbi'));
                                     $woocommerce->cart->empty_cart();
-                                    $order->add_order_note($this->msg['message']);
+                                    $order->add_order_note(esc_html($this->msg['message'], 'tbi'));
                                 }
                             }
                             else {
@@ -472,19 +478,19 @@ function woocommerce_tbi_netpay_init()
                             }
                         }
                         else {
-                            $order->add_order_note('Payment response received but it was in wrong format.');
+                            $order->add_order_note(esc_html('Payment response received but it was in wrong format.', 'tbi'));
                         }
                     }
                     else {
-                        $order->add_order_note('Payment response received but it was in wrong format.');
+                        $order->add_order_note(esc_html('Payment response received but it was in wrong format.', 'tbi'));
                     }
                 }
                 else {
                     //Handle backend response received from NetPay.
-                    $response = $_GET['response'];
-                    $orderId = $_GET['order_id'];
+                    $response = esc_attr($_GET['response']);
+                    $orderId = sanitize_text_field($_GET['order_id']);
                     //Try decrypting response received
-					$encryption_method = 'AES-128-CBC';
+					$encryption_method = esc_html('AES-128-CBC', 'tbi');
                     $decrypted_response = $this->openssl_decrypt_cbc($response, $this->enc_key, $this->enc_iv, $encryption_method);
                     //Split response into array after decryption
                     $response_array = json_decode($decrypted_response, TRUE);
@@ -495,13 +501,13 @@ function woocommerce_tbi_netpay_init()
 
                     if (is_array($response_array) && count($response_array)) {
                         $redirect_url = '';
-                        $this->msg['class'] = 'error';
-                        $this->msg['message'] = 'set error msg'; //$this->failed_message;
+                        $this->msg['class'] = esc_html('error', 'tbi');
+                        $this->msg['message'] = esc_html('set error msg', 'tbi'); //$this->failed_message;
 
                         //If it was set as backend response and it is frontend success just clear cart
                         if ($response_array['result'] === 'SUCCESS') {
                             $this->msg['message'] = ''; // set message
-                            $this->msg['class'] = 'success';
+                            $this->msg['class'] = esc_html('success', 'tbi');
 
                             if ($order->status == 'processing') {
                                 
@@ -513,7 +519,7 @@ function woocommerce_tbi_netpay_init()
                         //If it was set as backend response and it is frontend payment fail we need to set order status as failed here for woocommerce to show error on next page
                         else {
                             $order->update_status('failed');
-                            $this->msg['message'] = 'There was a problem with the payment.';
+                            $this->msg['message'] = esc_html('There was a problem with the payment.', 'tbi');
                         }
 
                         if (version_compare(WOOCOMMERCE_VERSION, '2.1', '<')) {
@@ -544,9 +550,9 @@ function woocommerce_tbi_netpay_init()
                 } // end of else if request after completion
             }
             else {
-                $response = $_GET['response'];
-                $orderId = $_GET['order_id'];
-				$encryption_method = 'AES-128-CBC';
+                $response = esc_attr($_GET['response']);
+                $orderId = sanitize_text_field($_GET['order_id']);
+				$encryption_method = esc_html('AES-128-CBC','tbi');
                 $decrypted_response = $this->openssl_decrypt_cbc($response, $this->enc_key, $this->enc_iv, $encryption_method);
                 $response_array = json_decode($decrypted_response, TRUE);
 
@@ -557,7 +563,7 @@ function woocommerce_tbi_netpay_init()
                 if (is_array($response_array) && count($response_array)) {
 
                     $redirect_url = '';
-                    $this->msg['class'] = 'error';
+                    $this->msg['class'] = esc_html('error', 'tbi');
                     
                     if (version_compare(WOOCOMMERCE_VERSION, '2.1', '<')) {
                         $redirect_url = add_query_arg('order', $order->id, add_query_arg('key', $order->order_key, get_permalink(get_option('woocommerce_thanks_page_id'))));
@@ -571,7 +577,7 @@ function woocommerce_tbi_netpay_init()
                         try {
                             //If result is SUCCESS
                             if ($response_array['result'] == 'SUCCESS') {
-                                $this->msg['class'] = 'success';
+                                $this->msg['class'] = esc_html('success', 'tbi');
                                 //Don't change order if it was already set to processing
                                 if ($order->status == 'processing') {
 
@@ -609,7 +615,7 @@ function woocommerce_tbi_netpay_init()
 
                                     //If it passed all checks set Payment as completed
                                     $order->payment_complete();
-                                    $order->add_order_note('NetPay payment successful<br/>NetPay Transaction ID: ' . $response_array['transaction_id'] . '<br/>NetPay Order ID: ' . $response_array['order_id']);
+                                    $order->add_order_note(esc_html('NetPay payment successful<br/>NetPay Transaction ID: ' . $response_array['transaction_id'] . '<br/>NetPay Order ID: ' . $response_array['order_id'], 'tbi'));
                                     $woocommerce->cart->empty_cart();
                                 }
                             }
@@ -623,11 +629,11 @@ function woocommerce_tbi_netpay_init()
                             }
                         }
                         catch (Exception $e) {
-                            $msg = "Error";
+                            $msg = esc_html("Error", "tbi");
                         }
                     }
                     else {
-                        $order->add_order_note('Payment response received but it was in wrong format.');
+                        $order->add_order_note(esc_html('Payment response received but it was in wrong format.', 'tbi'));
                     }
                     $this->web_redirect($redirect_url);
                     exit;
@@ -639,7 +645,7 @@ function woocommerce_tbi_netpay_init()
                     else {
                         $redirect_url = add_query_arg('key', $order->order_key, $this->get_return_url($order));
                     }
-                    $order->add_order_note('Payment response received but it was in wrong format.');
+                    $order->add_order_note(esc_html('Payment response received but it was in wrong format.', 'tbi'));
                     $this->web_redirect($redirect_url . '?msg=Unknown_error_occured');
                     exit;
                 }
@@ -702,14 +708,9 @@ function woocommerce_tbi_netpay_init()
 			$shipping_state      = $orders->get_shipping_state(); 
 			$shipping_postcode   = $orders->get_shipping_postcode();
 			$shipping_country    = $orders->get_shipping_country();
-			//$shipping_email    = $customer->get_shipping_email();
-			//$shipping_phone    = $customer->get_shipping_phone();
+
 			$shipping_method = $orders->get_shipping_method();
-			/* echo "<pre>";
-			print_r($orderss); */
-			/* die(); */
-			/* echo get_woocommerce_currency();
-			die(); */
+
             if (version_compare(WOOCOMMERCE_VERSION, '2.1', '<')) {
                 $redirect_url = (get_option('woocommerce_thanks_page_id') != '' ) ? get_permalink(get_option('woocommerce_thanks_page_id')) : get_site_url() . '/';
             }
@@ -720,19 +721,13 @@ function woocommerce_tbi_netpay_init()
             //Prepare response URL
             $relay_url = add_query_arg(array('wc-api' => get_class($this), 'order_id' => $order_id), $redirect_url);
 
-            $order_description = "New order with order id " . $order_id . " and amount " . get_woocommerce_currency() . " " . $order->get_total() . " has been placed.";
-			$encryption_method = 'AES-128-CBC';
+            $order_description = esc_html("New order with order id " . $order_id . " and amount " . get_woocommerce_currency() . " " . $order->get_total() . " has been placed.", 'tbi');
+			$encryption_method = esc_html('AES-128-CBC', 'tbi');
             $respUrl = $this->openssl_encrypt_cbc($relay_url, $this->enc_key, $this->enc_iv, $this->method);
 
             $session_token = $this->create_unique_session_token($this->merchant_id, $order_id);
             $transaction_id = $this->create_unique_transaction_id($order_id);
 			
-			/* echo $this->netpay_username; echo "<br>";
-			echo $this->netpay_password; echo "<br>";
-			echo $this->enc_key; echo "<br>";
-			echo $this->enc_iv; echo "<br>";
-			echo $encryption_method; echo "<br>";
-			die(); */
             //Set standard hosted form variables based on settings
             $netpay_args = array(
                 'merchant_id' => $this->merchant_id,
@@ -924,10 +919,7 @@ function woocommerce_tbi_netpay_init()
                     $netpay_args_array[$key] = $enc_value;
                 }
             }
-
-            //Initialize cURL
-            $ch = curl_init();
-
+			
             //Use Server Post URL based on selected mode
             if ($this->mode == 'test') {
                 $processURI = $this->testurl;
@@ -936,21 +928,32 @@ function woocommerce_tbi_netpay_init()
                 $processURI = $this->liveurl;
             }
 
-            curl_setopt($ch, CURLOPT_URL, $processURI);
-            //Set request as POST request
-            curl_setopt($ch, CURLOPT_POST, 1);
-            //Return content of request
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            //Add POST Fields to request from merged array
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($netpay_args_array));
-
-            //Turn of Secure connection verification if it was set as that in admin panel
-            if ($this->verify_peer !== 'yes') {
-                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
-            }
-
-            //Make cURL request
-            $response = curl_exec($ch);
+			$username = $netpay_args_array['username'];
+			$password = $netpay_args_array['password'];
+			$args = array(
+					'method' => 'POST',
+					'data_format' => 'body',
+					'httpversion' => '1.0',
+					'blocking' => true,
+					'headers' => array( 
+							'Authorization' => 'Basic ' . base64_encode($username . ':' . $password),
+							),
+					'body' => $netpay_args_array                      
+				);
+			$responses = wp_remote_post($processURI, $args);
+			if(is_wp_error( $responses)){
+				 $error_message = $responses->get_error_message();
+				 return esc_html("Something went wrong: $error_message", "tbi");
+			} 
+			else {
+				 if(!empty(wp_remote_retrieve_body($responses))){
+					 $response = wp_remote_retrieve_body($responses);
+				 }
+				 else{
+					  $error_message = $responses->get_error_message();
+				      return esc_html("Something went wrong: $error_message", "tbi");
+				 }
+			}
 			
             //If there was no error with connection
             if ($response !== FALSE) {
@@ -969,14 +972,14 @@ function woocommerce_tbi_netpay_init()
                 //Otherwise write that error happened and write note on order with reason if one was returned
                 else {
                     if(is_array($resp_data) && isset($resp_data['result']) && $resp_data['result'] === 'ERROR' && isset($resp_data['explanation'])) {
-                        $order->add_order_note('NetPay payment creation problem<br/>Reason: ' . $resp_data['explanation']);
+                        $order->add_order_note(esc_html('NetPay payment creation problem<br/>Reason: ' . $resp_data['explanation'], 'tbi'));
                     }
-                    return 'There was an error creating payment. Please contact us or try again.';
+                    return esc_html('There was an error creating payment. Please contact us or try again.', 'tbi');
                 }
             }
             //If there was problem with connection show error to user
             else {
-                return 'There was an error creating payment. Please contact us or try again.';
+                return esc_html('There was an error creating payment. Please contact us or try again.', 'tbi');
             }
         }
 
@@ -986,45 +989,45 @@ function woocommerce_tbi_netpay_init()
         function getBrowser()
         {
             $u_agent = $_SERVER['HTTP_USER_AGENT'];
-            $bname = 'Unknown';
-            $platform = 'Unknown';
+            $bname = esc_html('Unknown', 'tbi');
+            $platform = esc_html('Unknown', 'tbi');
             $version = "";
 
             //First get the platform
             if (preg_match('/linux/i', $u_agent)) {
-                $platform = 'linux';
+                $platform = esc_html('linux', 'tbi');
             }
             elseif (preg_match('/macintosh|mac os x/i', $u_agent)) {
-                $platform = 'mac';
+                $platform = esc_html('mac', 'tbi');
             }
             elseif (preg_match('/windows|win32/i', $u_agent)) {
-                $platform = 'windows';
+                $platform = esc_html('windows', 'tbi');
             }
 
             //Next get the name of the useragent yes seperately and for good reason
             if (preg_match('/MSIE/i', $u_agent) && !preg_match('/Opera/i', $u_agent)) {
-                $bname = 'Internet Explorer';
-                $ub = "MSIE";
+                $bname = esc_html('Internet Explorer', 'tbi');
+                $ub = esc_html("MSIE", "tbi");
             }
             elseif (preg_match('/Firefox/i', $u_agent)) {
-                $bname = 'Mozilla Firefox';
-                $ub = "Firefox";
+                $bname = esc_html('Mozilla Firefox', 'tbi');
+                $ub = esc_html("Firefox", "tbi");
             }
             elseif (preg_match('/Chrome/i', $u_agent)) {
-                $bname = 'Google Chrome';
-                $ub = "Chrome";
+                $bname = esc_html('Google Chrome', 'tbi');
+                $ub = esc_html("Chrome", "tbi");
             }
             elseif (preg_match('/Safari/i', $u_agent)) {
-                $bname = 'Apple Safari';
+                $bname = esc_html('Apple Safari', 'tbi');
                 $ub = "Safari";
             }
             elseif (preg_match('/Opera/i', $u_agent)) {
-                $bname = 'Opera';
-                $ub = "Opera";
+                $bname = esc_html('Opera', 'tbi');
+                $ub = esc_html("Opera", "tbi");
             }
             elseif (preg_match('/Netscape/i', $u_agent)) {
-                $bname = 'Netscape';
-                $ub = "Netscape";
+                $bname = esc_html('Netscape', 'tbi');
+                $ub = esc_html("Netscape", "tbi");
             }
 
             //Finally get the correct version number
@@ -1346,7 +1349,7 @@ function woocommerce_tbi_netpay_init()
      */
     function woocommerce_add_tbi_netpay_gateway($methods)
     {
-        $methods[] = 'WC_Tbi_Netpay';
+        $methods[] = esc_html('WC_Tbi_Netpay', 'tbi');
         return $methods;
     }
 
