@@ -39,8 +39,8 @@ Few features of this plugin:
 == Installation ==
 Easy steps to install the plugin:
 
-1. Requires cURL. Enable cURL if it is not enabled.
-2. Requires Mcrypt library. If it is not enabled or installed, install Mcrypt library and enable.
+1. Requires PHP Version almost 7.0 and greater.
+2. Requires Openssl library. If it is not enabled or installed, install Openssl library and enable.
 3. Upload `netPay-hosted-payment-gateway-for-wooCommerce` folder/directory to the `/wp-content/plugins/` directory.
 4. Activate the plugin through the 'Plugins' menu in WordPress.
 5. Go to WooCommerce => Settings
