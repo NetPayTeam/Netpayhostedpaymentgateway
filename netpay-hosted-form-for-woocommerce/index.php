@@ -28,8 +28,6 @@ function woocommerce_tbi_netpay_init()
      */
     class WC_Tbi_Netpay extends WC_Payment_Gateway {
 
-        protected $msg = array();
-
         public function __construct()
         {
 
@@ -63,8 +61,6 @@ function woocommerce_tbi_netpay_init()
             $this->mode = $this->settings['working_mode'];
             //Allows for merchant to receive response directly from NetPay servers instead of with client coming back from hosted page
             $this->backend_response = $this->settings['backend_response'];
-            //Cron is not able to verify peer if CA bundle is not set, we allow plugin to work if merchant cannot set it
-            $this->verify_peer = $this->settings['verify_peer'];
             //Live and Test URL for Server Post
             $this->liveurl = 'https://hosted.revolution.netpay.co.uk/v1/gateway/create_payment_link';
             $this->testurl = 'https://hostedtest.revolution.netpay.co.uk/v1/gateway/create_payment_link';
@@ -82,7 +78,6 @@ function woocommerce_tbi_netpay_init()
             }
 
             add_action('woocommerce_receipt_netpay', array(&$this, 'receipt_page'));
-            add_action('woocommerce_thankyou_netpay', array(&$this, 'thankyou_page'));
         }
 
         /**
@@ -143,13 +138,7 @@ function woocommerce_tbi_netpay_init()
                     'type' => 'select',
                     'options' => array('yes' => 'Yes', 'no' => 'No'),
                     'description' => "Allow NetPay to send backend response if the user close browser before redirecting back to response URL",
-                    'default' => 'yes'),
-                'verify_peer' => array(
-                    'title' => __('Verify secure connection to NetPay server'),
-                    'type' => 'select',
-                    'options' => array('no' => 'No', 'yes' => 'Yes'),
-                    'description' => __("Set if connection over HTTPS to NetPay server should validate NetPay server certificate (Requires CA bundle to be available for cURL on server).", 'tbi'),
-                    'default' => 'no')
+                    'default' => 'yes')
             );
         }
 
@@ -180,27 +169,18 @@ function woocommerce_tbi_netpay_init()
 				echo '</table>';
 			}
         }
-
-        /**
-         * Returns url based on Live/Test mode
-         */
-        public function form_submit_url()
-        {
-            if ($this->mode == 'live')
-                return $this->liveurl;
-            else
-                return $this->testurl;
-        }
-
+		
         /**
          * Returns Operation Mode number based on setting
          */
         public function operation_mode()
         {
-            if ($this->mode == 'live')
+            if ($this->mode == 'live'){
                 return '1';
-            else
+			}
+            else{
                 return '2';
+			}
         }
 
         /**
@@ -283,11 +263,10 @@ function woocommerce_tbi_netpay_init()
 			$time_1 = substr($time, 0, floor(strlen($time) / 2));
 			$time_2 = substr($time, floor(strlen($time) / 2));
 			$rand = '';
-			$seed = str_split('abcdefghijklmnopqrstuvwxyz'
-					. 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-			foreach (array_rand($seed, 3) as $k)
+			$seed = str_split('abcdefghijklmnopqrstuvwxyz'. 'ZYXWVUTSRQPONMLKJIHGFEDCBA'.'156587487454784');
+			foreach(array_rand($seed, 5) as $k){
 				$rand .= $seed[$k];
-
+			}
 			$unique_trans_id = strtolower($transaction_id) . $time_1 . $rand . $time_2;
 			return hash('adler32', $unique_trans_id) . hash('crc32', $unique_trans_id);
 		}
@@ -301,89 +280,24 @@ function woocommerce_tbi_netpay_init()
 			$time_1 = substr($time, 0, floor(strlen($time) / 2));
 			$time_2 = substr($time, floor(strlen($time) / 2));
 			$rand = '';
-			$seed = str_split('abcdefghijklmnopqrstuvwxyz'
-					. 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-			foreach (array_rand($seed, 3) as $k)
+			$seed = str_split('abcdefghijklmnopqrstuvwxyz'. 'ZYXWVUTSRQPONMLKJIHGFEDCBA'.'156587487454784');
+			foreach(array_rand($seed, 5) as $k){
 				$rand .= $seed[$k];
+			}
 
 			return substr(strtolower($merchant_id) . $time_1 . $rand . $time_2 . strtolower($transaction_id), 0, 25);
 		}
-
-		public function get_url($url) {
-			if (isset($_SERVER['HTTPS'])) {
-				$protocol = ($_SERVER['HTTPS'] && $_SERVER['HTTPS'] != "off") ? "https" : "http";
-			} else {
-				$protocol = 'http';
-			}
-			return $protocol . "://" . $_SERVER['HTTP_HOST'] . $url;
-		}
 		
-		public function get_json_data($response)
-		{
-			$data = json_decode($response, TRUE);
-
-			return $data;
-		}
-
-		public function get_xml_data($response)
-		{
-			$xml = simplexml_load_string($response, 'SimpleXMLElement', LIBXML_NOCDATA);
-			$data = json_decode(json_encode($xml), TRUE);
-
-			return $data;
-		}
-
-		public function get_str_data($response)
-		{
-			$data = self::parse_response_url($response);
-
-			return $data;
-		}
-		
-		// Parse response string
-		public function parse_response_url($response)
-		{
-			preg_match_all('/\{([^}]*)\}/', $response, $matches);
-
-			$parsed_url = array();
-			foreach ($matches[1] as $match) {
-				list($key, $value) = explode('|', $match);
-				$parsed_url[$key] = $value;
-			}
-
-			return $parsed_url;
-		}
-		
-		/***************** Encrypted Function End*******************/
-		
-	
         /**
-         * There are no payment fields for NetPay Hosted payment method,
-         * but we want to show the description if one is set
-         */
-        function payment_fields()
-        {
-            if ($this->description)
-                echo wpautop(wptexturize($this->description)) . "<br>";
-        }
-
-        /**
-         * We do nothing on Thank You page
-         */
-        public function thankyou_page($order_id)
-        {
-          
-        }
-
-        /**
-         * Receipt Page - sends query for redirect URL to NetPay and redirects
-         * or shows error if something went wrong
-         */
+		 * Receipt Page - sends query for redirect URL to NetPay and redirects
+		 * or shows error if something went wrong
+		 */
+		 
         function receipt_page($order)
         {
             echo $this->generate_netpay_form($order);
         }
-
+		
         /**
          * Process the payment and return the result
          */
@@ -406,7 +320,7 @@ function woocommerce_tbi_netpay_init()
          * Check for valid NetPay server callback to validate the transaction response.
          */
         function check_netpay_response()
-        {
+        {	
             //Condition to check if backend response is enabled from admin panel
             if ($this->backend_response == 'yes') {
                 if (isset($_POST['response'])) {
@@ -629,7 +543,7 @@ function woocommerce_tbi_netpay_init()
                             }
                         }
                         catch (Exception $e) {
-                            $msg = esc_html("Error", "tbi");
+                            echo isset($response_array['error']['cause']) ? $response_array['error']['cause'] : '';
                         }
                     }
                     else {
@@ -671,45 +585,36 @@ function woocommerce_tbi_netpay_init()
          */
         public function generate_netpay_form($order_id)
         {
-            global $woocommerce;
-			
-            $order = new WC_Order($order_id);
-			$orders = wc_get_order( $order_id );
+            global $woocommerce;			
+			$order = wc_get_order($order_id);
 			$user_id = get_post_meta( $order_id, '_customer_user', true );
-			// Get an instance of the WC_Customer Object from the user ID
-			$customer = new WC_Customer( $user_id );
-
-			$username     = $customer->get_username(); // Get username
-			$user_email   = $customer->get_email(); // Get account email
-			$first_name   = $customer->get_first_name();
-			$last_name    = $customer->get_last_name();
-			$display_name = $customer->get_display_name();
-
+			$items = $order->get_items();
+	
 			// Customer billing information details (from account)
-			$billing_first_name = $orders->get_billing_first_name();
-			$billing_last_name  = $orders->get_billing_last_name();
-			$billing_company    = $orders->get_billing_company();
-			$billing_address_1  = $orders->get_billing_address_1();
-			$billing_address_2  = $orders->get_billing_address_2();
-			$billing_city       = $orders->get_billing_city();
-			$billing_state      = $orders->get_billing_state();
-			$billing_postcode   = $orders->get_billing_postcode();
-			$billing_country    = $orders->get_billing_country();
-			$billing_email    = $orders->get_billing_email();
-			$billing_phone    = $orders->get_billing_phone();
+			$billing_first_name = $order->get_billing_first_name();
+			$billing_last_name  = $order->get_billing_last_name();
+			$billing_company    = $order->get_billing_company();
+			$billing_address_1  = $order->get_billing_address_1();
+			$billing_address_2  = $order->get_billing_address_2();
+			$billing_city       = $order->get_billing_city();
+			$billing_state      = $order->get_billing_state();
+			$billing_postcode   = $order->get_billing_postcode();
+			$billing_country    = $order->get_billing_country();
+			$billing_email    = $order->get_billing_email();
+			$billing_phone    = $order->get_billing_phone();
 
 			// Customer shipping information details (from account)
-			$shipping_first_name = $orders->get_shipping_first_name();
-			$shipping_last_name  = $orders->get_shipping_last_name();
-			$shipping_company    = $orders->get_shipping_company();
-			$shipping_address_1  = $orders->get_shipping_address_1();
-			$shipping_address_2  = $orders->get_shipping_address_2();
-			$shipping_city       = $orders->get_shipping_city();
-			$shipping_state      = $orders->get_shipping_state(); 
-			$shipping_postcode   = $orders->get_shipping_postcode();
-			$shipping_country    = $orders->get_shipping_country();
+			$shipping_first_name = $order->get_shipping_first_name();
+			$shipping_last_name  = $order->get_shipping_last_name();
+			$shipping_company    = $order->get_shipping_company();
+			$shipping_address_1  = $order->get_shipping_address_1();
+			$shipping_address_2  = $order->get_shipping_address_2();
+			$shipping_city       = $order->get_shipping_city();
+			$shipping_state      = $order->get_shipping_state(); 
+			$shipping_postcode   = $order->get_shipping_postcode();
+			$shipping_country    = $order->get_shipping_country();
 
-			$shipping_method = $orders->get_shipping_method();
+			$shipping_method = $order->get_shipping_method();
 
             if (version_compare(WOOCOMMERCE_VERSION, '2.1', '<')) {
                 $redirect_url = (get_option('woocommerce_thanks_page_id') != '' ) ? get_permalink(get_option('woocommerce_thanks_page_id')) : get_site_url() . '/';
@@ -759,7 +664,7 @@ function woocommerce_tbi_netpay_init()
 			
 			$items = $order->get_items();
             foreach ($items as $item_id => $item) {
-			    $product = $item->get_product();
+			    $product = $item->get_product();				
                 //Get the product ID
                 $item_id = $item->get_product_id();
 
@@ -770,7 +675,7 @@ function woocommerce_tbi_netpay_init()
                 $item_name = preg_replace('/[\x00-\x1F\x80-\xFF\|\}\{]/', '', $item_name);
                 //Make sure that the number of characters are no more than the API expects
                 if (strlen($item_name) > 97) {
-                    $item_description = substr($item_name, 0, 97) . "..."; // max 100 character description can be sent
+                    $item_name = substr($item_name, 0, 97) . "..."; // max 97 character item name + 3 ... = 100 can be sent
                 }
 
                 //Get the item description
@@ -783,10 +688,9 @@ function woocommerce_tbi_netpay_init()
                     $item_description = $item_name;
                 }
 
-
                 //Make sure that the number of characters are no more than the API expects
                 if (strlen($item_description) > 197) {
-                    $item_description = substr($item_description, 0, 197) . "..."; // max 200 character description can be sent
+					$item_description = substr($item_description, 0, 197) . "..."; // max 197 + 3 ... = 100 character can be sent
                 }
 
                 //Get the item quantity makeing sure we strip any unwanted characters
@@ -870,7 +774,7 @@ function woocommerce_tbi_netpay_init()
                     'ship_to_county' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($billing_state), 0, 50))),
                     'ship_to_country' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($this->getValidCountryCode($billing_country)), 0, 3))),
                     'ship_to_postcode' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($billing_postcode), 0, 10))),
-                    'ship_to_method' => trim(substr($shipping_method , 0, 20)),
+                    'ship_to_method' => preg_replace('/\x00-\x1F\x80-\xFF/', '', trim(substr(strip_tags($shipping_method), 0, 20))),
                     'customer_ip_address' => trim(substr($_SERVER['REMOTE_ADDR'], 0, 15)),
                     'customer_hostname' => trim(substr($_SERVER['HTTP_HOST'], 0, 60)),
                     'customer_browser' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($browserName['name']), 0, 60))),
@@ -897,7 +801,7 @@ function woocommerce_tbi_netpay_init()
                     'ship_to_county' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($shipping_state), 0, 50))),
                     'ship_to_country' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($this->getValidCountryCode($shipping_country)), 0, 3))),
                     'ship_to_postcode' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($shipping_postcode), 0, 10))),
-                    'ship_to_method' => trim(substr($shipping_method , 0, 20)),
+                    'ship_to_method' => preg_replace('/\x00-\x1F\x80-\xFF/', '', trim(substr(strip_tags($shipping_method), 0, 20))),
                     'customer_ip_address' => trim(substr($_SERVER['REMOTE_ADDR'], 0, 15)),
                     'customer_hostname' => trim(substr($_SERVER['HTTP_HOST'], 0, 60)),
                     'customer_browser' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($browserName['name']), 0, 60))),
