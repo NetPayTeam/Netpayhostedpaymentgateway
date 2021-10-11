@@ -21,11 +21,13 @@ function woocommerce_tbi_netpay_init()
     /**
      * Localisation
      */
-    load_plugin_textdomain('wc-tbi-netpay', false, dirname(plugin_basename(__FILE__)) . '/languages');
+	 
+    //load_plugin_textdomain('wc-tbi-netpay', false, dirname(plugin_basename(__FILE__)) . '/languages');
 
     /**
      * NetPay Payment Gateway class
      */
+	 
     class WC_Tbi_Netpay extends WC_Payment_Gateway {
 
         public function __construct()
@@ -183,43 +185,6 @@ function woocommerce_tbi_netpay_init()
 			}
         }
 
-        /**
-         * ADD PKCS5 PADDING
-         */
-        public function add_pkcs5_padding($text, $blocksize)
-        {
-            $pad = $blocksize - (strlen($text) % $blocksize);
-            return $text . str_repeat(chr($pad), $pad);
-        }
-
-		/* 	OPENSSL ENCRYPTION
-		 * 	MODE CBC
-		 */		
-		/***************** Encrypted Function Start*******************/
-		public function mcrypt_encrypt_cbc($input, $key, $iv) {
-			$size = mcrypt_get_block_size(MCRYPT_RIJNDAEL_128, MCRYPT_MODE_CBC);
-			$input = $this->add_pkcs5_padding($input, $size);
-			$td = mcrypt_module_open(MCRYPT_RIJNDAEL_128, '', MCRYPT_MODE_CBC, '');
-
-			mcrypt_generic_init($td, pack('H*', $key), pack('H*', $iv));
-			$data = mcrypt_generic($td, $input);
-			mcrypt_generic_deinit($td);
-			mcrypt_module_close($td);
-			$data = bin2hex($data);
-
-			return $data;
-		}
-
-		/* 	MCRYPT DECRYPTION
-		 * 	MODE CBC
-		 */
-
-		public function mcrypt_decrypt_cbc($input, $key, $iv) {
-			$decrypted = mcrypt_decrypt(MCRYPT_RIJNDAEL_128, pack('H*', $key), pack('H*', $input), MCRYPT_MODE_CBC, pack('H*', $iv));
-
-			return $this->remove_pkcs5_padding($decrypted);
-		}
-
 		/* 	OPENSSL ENCRYPTION
 		 * 	MODE CBC
 		 */
@@ -241,19 +206,7 @@ function woocommerce_tbi_netpay_init()
 
 			return $decrypted;
 		}
-
-		/*
-		 * 	REMOVE PKCS5 PADDING
-		 */
-
-		private function remove_pkcs5_padding($decrypted) {
-			$dec_s = strlen($decrypted);
-			$padding = ord($decrypted[$dec_s - 1]);
-			$decrypted = substr($decrypted, 0, -$padding);
-
-			return $decrypted;
-		}
-
+		
 		/*
 		 * 	Add timestamp to transaction id
 		 */
@@ -774,7 +727,7 @@ function woocommerce_tbi_netpay_init()
                     'ship_to_county' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($billing_state), 0, 50))),
                     'ship_to_country' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($this->getValidCountryCode($billing_country)), 0, 3))),
                     'ship_to_postcode' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($billing_postcode), 0, 10))),
-                    'ship_to_method' => preg_replace('/\x00-\x1F\x80-\xFF/', '', trim(substr(strip_tags($shipping_method), 0, 20))),
+                    'ship_to_method' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($shipping_method), 0, 20))),
                     'customer_ip_address' => trim(substr($_SERVER['REMOTE_ADDR'], 0, 15)),
                     'customer_hostname' => trim(substr($_SERVER['HTTP_HOST'], 0, 60)),
                     'customer_browser' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($browserName['name']), 0, 60))),
@@ -801,7 +754,7 @@ function woocommerce_tbi_netpay_init()
                     'ship_to_county' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($shipping_state), 0, 50))),
                     'ship_to_country' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($this->getValidCountryCode($shipping_country)), 0, 3))),
                     'ship_to_postcode' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($shipping_postcode), 0, 10))),
-                    'ship_to_method' => preg_replace('/\x00-\x1F\x80-\xFF/', '', trim(substr(strip_tags($shipping_method), 0, 20))),
+                    'ship_to_method' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($shipping_method), 0, 20))),
                     'customer_ip_address' => trim(substr($_SERVER['REMOTE_ADDR'], 0, 15)),
                     'customer_hostname' => trim(substr($_SERVER['HTTP_HOST'], 0, 60)),
                     'customer_browser' => preg_replace('/[\x00-\x1F\x80-\xFF]/', '', trim(substr(strip_tags($browserName['name']), 0, 60))),
